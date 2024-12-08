@@ -14,11 +14,11 @@ const readdir = promisify(fs.readdir);
 const rename = promisify(fs.rename);
 const stat = promisify(fs.stat);
 let test = process.argv; 
-console.log(chalk.yellow(figlet.textSync("GST-HUB CLI", { horizontalLayout: "full" }))  );
+//console.log(chalk.yellow(figlet.textSync("GST-HUB CLI", { horizontalLayout: "full" }))  );
 var auth =true;
 program
 .version("1.0.0")
-.description("GST-HUB CLI")
+.description("GST-HUB CLIZ")
 .option("-i ", "Int")
 .option("-new  -p <Name> ", "New")
 .option("-c --clone -t <Name>", "Clone")
@@ -117,6 +117,16 @@ function showinHelp()
 }
 function showInteractive()
 {
+  const pathToFileOrDir = './AppDeployment';
+
+// Check if the file or directory exists synchronously
+if (fs.existsSync(pathToFileOrDir)) {
+ // console.log(`The file or directory at '${pathToFileOrDir}' exists.`);
+  var menu = ["Clone Options", "Env"];
+} else {
+  //console.log(`The file or directory at '${pathToFileOrDir}' does not exist.`);
+  var menu = ["New Project", "Clone Options"];
+}
      program.action(() => {
         inquirer
           .prompt([
@@ -124,7 +134,7 @@ function showInteractive()
               type: "list",
               name: "choice",
               message: "Options:",
-              choices: ["New Project", "Clone Options", "Env"],
+              choices: menu,
             },
           ])
           .then((result) => {
@@ -142,7 +152,7 @@ function showInteractive()
                   ])
                   .then((pname) => {
 
-                    if (!fs.existsSync('C:\\Users\\nulll\\Desktop\\Finace\\gst-hub\\gst-hub-cli\\AppDeployment')) {
+                    if (!fs.existsSync(pathToFileOrDir)) {
                       // if (fs.existsSync('./AppDeployment')) {
                       program.action(() => {
                         inquirer
@@ -259,7 +269,7 @@ function showInteractive()
                         type: "list",
                         name: "name",
                         message: "Repo type:",
-                        choices: ["start", "stop", "update"],
+                        choices: ["start", "stop", "update", "status"],
                       },
                     ])
                     .then((answers) => {
@@ -307,7 +317,20 @@ function showInteractive()
                               console.log(chalk.green(`Hey there, ${answers.name}!`));
                             });
                         });
-                    
+                      if(answers.name=='status')
+                        program.action(() => {
+                          inquirer
+                            .prompt([
+                              {
+                                type: "input",
+                                name: "name",
+                                message: "Artifact Name and Version:",
+                              },
+                            ])
+                            .then((answers) => {
+                              console.log(chalk.green(`Hey there, ${answers.name}!`));
+                            });
+                        });
                       if(answers.name=='update')
                         program.action(() => {
                           inquirer
@@ -326,35 +349,7 @@ function showInteractive()
                                 moveJsonFilesToCommonDirectory('C:\\Users\\nulll\\Desktop\\Finace\\gst-hub\\gst-hub-cli\\git', 'C:\\Users\\nulll\\Desktop\\Finace\\gst-hub\\gst-hub-cli\\AppDeployment\\resources', {recursive: true});
 
                               }
-                              /**program.action(() => {
-                                inquirer
-                                  .prompt([
-                                    {
-                                      type: "text",
-                                      name: "name",
-                                      message: "Artifact Repo Link:",
-                                    },
-                                  ])
-                                  .then((answers) => {
-                                    console.log(chalk.green(`Cloning..., ${answers.name}!`));
-                                    
-                                    var link = answers.name;
-                                    exec(`cd ./git && git clone ${link}`, (err, stdout, stderr) => {
-                                      if (err) {
-                                        // node couldn't execute the command
-                                        return;
-                                      }
-                                    
-                                      // the *entire* stdout and stderr (buffered)
-                                     // console.log(`stdout: ${stdout}`);
-                                      console.log(`stderr: ${stderr}`);
-                                      console.log(`Done`);
-                                    });
-        
-                                  });
-                              }); */
-                            
-                            
+                             
                               if(answers.name=='gst')
                                 program.action(() => {
                                   inquirer
