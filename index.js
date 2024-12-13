@@ -81,7 +81,7 @@ else
   showAuthHelp()
 }
 
-function showAuthHelp()
+async function showAuthHelp()
 {
 
     inquirer
@@ -115,7 +115,7 @@ function showinHelp()
   });
   program.parse();
 }
-function showInteractive()
+async function showInteractive()
 {
   const pathToFileOrDir = './AppDeployment';
 
@@ -127,7 +127,7 @@ if (fs.existsSync(pathToFileOrDir)) {
   //console.log(`The file or directory at '${pathToFileOrDir}' does not exist.`);
   var menu = ["New Project", "Clone Options"];
 }
-     program.action(() => {
+     program.action(async () => {
         inquirer
           .prompt([
             {
@@ -172,7 +172,17 @@ if (fs.existsSync(pathToFileOrDir)) {
                                 // node couldn't execute the command
                                 return;
                               }
+								 exec(`cd /AppDeployment && npm install`, (err, stdout, stderr) => {
+                              if (err) {
+                                // node couldn't execute the command
+                                return;
+                              }
                             
+                              // the *entire* stdout and stderr (buffered)
+                              console.log(`stdout: ${stdout}`);
+                              console.log(`stderr: ${stderr}`);
+                              console.log(`Done.`);
+                            });
                               // the *entire* stdout and stderr (buffered)
                               console.log(`stdout: ${stdout}`);
                               console.log(`stderr: ${stderr}`);
@@ -228,7 +238,19 @@ if (fs.existsSync(pathToFileOrDir)) {
                             console.log(chalk.green(`Cloning..., ${answers.name}!`));
                             
                             var link = answers.name;
-                            exec(`cd ./git && git clone ${link}`, (err, stdout, stderr) => {
+                            var comm;
+                            if (fs.existsSync('./git'))
+                            {
+                              console.log('exists')
+                              comm = `cd ./git && git clone ${link}`;
+                            }
+                            else
+                            {
+
+                              console.log('NOT exists')
+                               comm = `mkdir git && cd ./git && git clone ${link}`;
+                            }
+                            exec(comm, (err, stdout, stderr) => {
                               if (err) {
                                 // node couldn't execute the command
                                 return;
@@ -238,6 +260,7 @@ if (fs.existsSync(pathToFileOrDir)) {
                              // console.log(`stdout: ${stdout}`);
                               console.log(`stderr: ${stderr}`);
                               console.log(`Done`);
+                              return;
                             });
 
                           });
@@ -274,20 +297,11 @@ if (fs.existsSync(pathToFileOrDir)) {
                     ])
                     .then((answers) => {
                       if(answers.name=='start')
-                      program.action(() => {
-                        inquirer
-                          .prompt([
-                            {
-                              type: "input",
-                              name: "name",
-                              message: "Artifact Repo Link:",
-                            },
-                          ])
-                          .then((answers) => {
-                            console.log(chalk.green(`Cloning..., ${answers.name}!`));
-                            
-                            var link = answers.name;
-                            exec(`git clone ${link}`, (err, stdout, stderr) => {
+					  {
+
+                            console.log(chalk.green(`Starting Docker..., Run!`));
+
+                            exec(`cd ./AppDeployment/server && docker-compose -f docker-compose.yaml up`, (err, stdout, stderr) => {
                               if (err) {
                                 console.log(`stderr: ${err}`);
                               console.log(`Done`);
@@ -299,38 +313,49 @@ if (fs.existsSync(pathToFileOrDir)) {
                               // console.log(`stdout: ${stdout}`);
                               console.log(`stderr: ${stderr}`);
                               console.log(`Done`);
+                              return;
                             });
+					  }
+                          
 
-                          });
-                      });
                       if(answers.name=='stop')
-                        program.action(() => {
-                          inquirer
-                            .prompt([
-                              {
-                                type: "input",
-                                name: "name",
-                                message: "Artifact Name and Version:",
-                              },
-                            ])
-                            .then((answers) => {
-                              console.log(chalk.green(`Hey there, ${answers.name}!`));
+					  {
+						   console.log(chalk.green(`Starting Docker..., Run!`));
+
+                            exec(`cd ./AppDeployment/server && docker-compose -f docker-compose.yaml down`, (err, stdout, stderr) => {
+                              if (err) {
+                                console.log(`stderr: ${err}`);
+                              console.log(`Done`);
+                                // node couldn't execute the command
+                                return;
+                              }
+                            
+                              // the *entire* stdout and stderr (buffered)
+                              // console.log(`stdout: ${stdout}`);
+                              console.log(`stderr: ${stderr}`);
+                              console.log(`Done`);
+                              return;
                             });
-                        });
+					  }
                       if(answers.name=='status')
-                        program.action(() => {
-                          inquirer
-                            .prompt([
-                              {
-                                type: "input",
-                                name: "name",
-                                message: "Artifact Name and Version:",
-                              },
-                            ])
-                            .then((answers) => {
-                              console.log(chalk.green(`Hey there, ${answers.name}!`));
+					  {
+						   console.log(chalk.green(`Starting Docker..., Run!`));
+
+                            exec(`cd ./server && docker-compose -f docker-compose.yaml up`, (err, stdout, stderr) => {
+                              if (err) {
+                                console.log(`stderr: ${err}`);
+                              console.log(`Done`);
+                                // node couldn't execute the command
+                                return;
+                              }
+                            
+                              // the *entire* stdout and stderr (buffered)
+                              // console.log(`stdout: ${stdout}`);
+                              console.log(`stderr: ${stderr}`);
+                              console.log(`Done`);
+                              return;
                             });
-                        });
+					  }
                       if(answers.name=='update')
                         program.action(() => {
                           inquirer
@@ -342,11 +367,12 @@ if (fs.existsSync(pathToFileOrDir)) {
                                 choices: ["gst", "git"],
                               },
                             ])
-                            .then((answers) => {
+                            .then((answers) =>  {
                               if(answers.name=='git')
                               {
                                 //compare folders
-                                moveJsonFilesToCommonDirectory('C:\\Users\\nulll\\Desktop\\Finace\\gst-hub\\gst-hub-cli\\git', 'C:\\Users\\nulll\\Desktop\\Finace\\gst-hub\\gst-hub-cli\\AppDeployment\\resources', {recursive: true});
+                                moveJsonFilesToCommonDirectory('./git', './AppDeployment/resources', {recursive: true});
+								 
 
                               }
                              
@@ -405,6 +431,19 @@ async function moveJsonFilesToCommonDirectory(sourceDir, targetDir) {
                       // Move the .json file to the target directory
                       await rename(oldPath, newPath);
                       console.log(`Moved ${file} to ${targetDir}`);
+                      console.log(`OK`);
+                      exec(`cd ./AppDeployment && node generate.js`, (err, stdout, stderr) => {
+                        if (err) {
+                          console.log(err);
+                          return;
+                        }
+                      
+                        // the *entire* stdout and stderr (buffered)
+                       // console.log(`stdout: ${stdout}`);
+                        console.log(`stderr: ${stderr}`);
+                        console.log(`Done`);
+                        return;
+                      });
                   }
               }
           }
