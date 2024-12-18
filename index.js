@@ -433,7 +433,7 @@ async function moveJsonFilesToCommonDirectory(sourceDir, targetDir) {
                       console.log(`Moved ${file} to ${targetDir}`);
                       console.log(`OK`);
 
-                      exec(`cd ./AppDeployment && node install && node generate.js`, (err, stdout, stderr) => {
+                      exec(`cd ./AppDeployment && npm install && node generate.js`, (err, stdout, stderr) => {
 
 
                         if (err) {
