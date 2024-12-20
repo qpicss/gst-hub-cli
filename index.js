@@ -182,11 +182,13 @@ if (fs.existsSync(pathToFileOrDir)) {
                               console.log(`stdout: ${stdout}`);
                               console.log(`stderr: ${stderr}`);
                               console.log(`Done.`);
+							   return;
                             });
                               // the *entire* stdout and stderr (buffered)
                               console.log(`stdout: ${stdout}`);
                               console.log(`stderr: ${stderr}`);
                               console.log(`Done.`);
+							   return;
                             });
                           });
                       });
@@ -262,6 +264,7 @@ if (fs.existsSync(pathToFileOrDir)) {
                               console.log(`Done`);
                               return;
                             });
+							return;
 
                           });
                       });
@@ -309,12 +312,10 @@ if (fs.existsSync(pathToFileOrDir)) {
                                 return;
                               }
                             
-                              // the *entire* stdout and stderr (buffered)
-                              // console.log(`stdout: ${stdout}`);
-                              console.log(`stderr: ${stderr}`);
-                              console.log(`Done`);
+                              
                               return;
                             });
+							
 					  }
                           
 
@@ -395,6 +396,7 @@ if (fs.existsSync(pathToFileOrDir)) {
                         });
                       program.parse();
                       });
+					  return;
                 });
             program.parse();
           });
@@ -433,7 +435,21 @@ async function moveJsonFilesToCommonDirectory(sourceDir, targetDir) {
                       console.log(`Moved ${file} to ${targetDir}`);
                       console.log(`OK`);
 
-                      exec(`cd ./AppDeployment && npm install && node generate.js`, (err, stdout, stderr) => {
+                      exec(`cd AppDeployment && npm install && node generate.js`, (err, stdout, stderr) => {
+
+
+                        if (err) {
+                          console.log(err);
+                          return;
+                        }
+						/*exec(`npm install`, (err, stdout, stderr) => {
+
+
+                        if (err) {
+                          console.log(err);
+                          return;
+                        }
+                      exec(`node generate.js`, (err, stdout, stderr) => {
 
 
                         if (err) {
@@ -447,6 +463,20 @@ async function moveJsonFilesToCommonDirectory(sourceDir, targetDir) {
                         console.log(`Done`);
                         return;
                       });
+                        // the *entire* stdout and stderr (buffered)
+                       // console.log(`stdout: ${stdout}`);
+                        console.log(`stderr: ${stderr}`);
+                        console.log(`Done`);
+                        return;
+                      });*/
+                      
+                        // the *entire* stdout and stderr (buffered)
+                       // console.log(`stdout: ${stdout}`);
+                        console.log(`stderr: ${stderr}`);
+                        console.log(`Done`);
+                        return;
+                      });
+					  return;
                   }
               }
           }
