@@ -295,7 +295,7 @@ if (fs.existsSync(pathToFileOrDir)) {
                         type: "list",
                         name: "name",
                         message: "Repo type:",
-                        choices: ["start", "stop", "update", "status"],
+                        choices: ["start", "stop", "update", "status",'purge'],
                       },
                     ])
                     .then((answers) => {
@@ -317,13 +317,13 @@ if (fs.existsSync(pathToFileOrDir)) {
                             });
 							
 					  }
-                          
-
-                      if(answers.name=='stop')
+                      if(answers.name=='purge')
 					  {
+						  //docker stop $(docker ps -a -q)
+						  
 						   console.log(chalk.green(`Starting Docker..., Run!`));
 
-                            exec(`cd ./AppDeployment/server && docker-compose -f docker-compose.yaml down`, (err, stdout, stderr) => {
+                            exec("docker stop $(docker ps) && docker rm $(docker ps)", (err, stdout, stderr) => {
                               if (err) {
                                 console.log(`stderr: ${err}`);
                               console.log(`Done`);
@@ -333,7 +333,29 @@ if (fs.existsSync(pathToFileOrDir)) {
                             
                               // the *entire* stdout and stderr (buffered)
                               // console.log(`stdout: ${stdout}`);
-                              console.log(`stderr: ${stderr}`);
+                              console.log(`out: ${stdout}`);
+                              console.log(`Done`);
+                              return;
+                            });
+					  }  
+
+                      if(answers.name=='stop')
+					  {
+						  //docker stop $(docker ps -a -q)
+						  
+						   console.log(chalk.green(`Starting Docker..., Run!`));
+
+                            exec("docker stop $(docker ps)", (err, stdout, stderr) => {
+                              if (err) {
+                                console.log(`stderr: ${err}`);
+                              console.log(`Done`);
+                                // node couldn't execute the command
+                                return;
+                              }
+                            
+                              // the *entire* stdout and stderr (buffered)
+                              // console.log(`stdout: ${stdout}`);
+                              console.log(`out: ${stdout}`);
                               console.log(`Done`);
                               return;
                             });
@@ -342,7 +364,7 @@ if (fs.existsSync(pathToFileOrDir)) {
 					  {
 						   console.log(chalk.green(`Starting Docker..., Run!`));
 
-                            exec(`cd ./server && docker-compose -f docker-compose.yaml up`, (err, stdout, stderr) => {
+                            exec(`docker images`, (err, stdout, stderr) => {
                               if (err) {
                                 console.log(`stderr: ${err}`);
                               console.log(`Done`);
@@ -352,9 +374,9 @@ if (fs.existsSync(pathToFileOrDir)) {
                             
                               // the *entire* stdout and stderr (buffered)
                               // console.log(`stdout: ${stdout}`);
-                              console.log(`stderr: ${stderr}`);
+                              console.log(`Out: ${stdout}`);
                               console.log(`Done`);
-                              return;
+                              
                             });
 					  }
                       if(answers.name=='update')
