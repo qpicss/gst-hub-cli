@@ -15,8 +15,8 @@ Before using the CLI tool, ensure you have the following installed on your syste
 
 - Node.js (v20 or higher)
 - npm (Node Package Manager)
-- git (Git version control system)
-
+- git (Git version control system) 
+- Docker (Docker-compose) 
 ## Installation
 
 1. **Clone the Repository:**
@@ -35,8 +35,6 @@ Before using the CLI tool, ensure you have the following installed on your syste
    ```bash
    npm install
    ```
-
-
 
 ## Usage
 

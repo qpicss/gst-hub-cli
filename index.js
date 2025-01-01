@@ -259,16 +259,29 @@ async function getAuthToken() {
 
 program
   .version("1.0.0")
-  .description("GST-HUB CLIZ")
-  .option("-i ", "Int")
-  .option("-new  -p <Name> ", "New")
-  .option("-c --clone -t <Name>", "Clone")
+  .description("GST-HUB CLI")
+  .option("-i ", "Interactive menu")
+  .option("-new <Name> ", "New Project")
+  .option("-c --clone <RepoName> <RepoLink>", "Clone an operation from a repository. run gst -c git <RepoLink> to clone a git repository or gst -c gst <RepoLink> to clone a gst repository")
+  .option("-list", "List")
+  .option("-env <command>", "Docker Environment run commands as gst -env start to start the environment, gst -env stop to stop the environment, gst -env update to update the environment, gst -env status to check the environment status, gst -env purge to purge the environment")
+  .option("-token", "Store a token from gst-hub.com")
+  .option("-login", "Login to gst-hub.com")
+  .option("-h", "Help")
   .action((options) => {
-    console.log(chalk.blue(`Cloning OpenAPI, ${options.OpenAPI}!`));
-    console.log(chalk.green(`Cloning OperationId, ${options.OperationId}!`));
-    console.log(chalk.red(`Cloning Schema, ${options.Schema}!`));
+
+      console.log("Help: Use the following options to interact with the GST-HUB CLI:");
+      console.log("-i: Interactive menu");
+      console.log("-new <Name>: Create a new project");
+      console.log("-c --clone <RepoName> <RepoLink>: Clone an operation from a repository");
+      console.log("-list: List available options");
+      console.log("-env <command>: Manage Docker environment");
+      console.log("-token: Store a token from gst-hub.com");
+      console.log("-login: Login to gst-hub.com");
+     
   });
-//console.log(test);
+if(test[2] != '-h')
+  {//console.log(test);
 if (test[2] && (test[2].includes('--') || test[2].includes('-'))) {
   if (test[2] === '-token' || test[2] === '-login') {
     switch (test[2]) {
@@ -344,6 +357,7 @@ if (test[2] && (test[2].includes('--') || test[2].includes('-'))) {
           console.log(chalk.yellow("Usage: gst -login -u <username> -p <password>"));
         }
         break;
+        
     }
   } else {
     /// console.log(await getAuthToken());
@@ -427,6 +441,10 @@ if (test[2] && (test[2].includes('--') || test[2].includes('-'))) {
 else {
   showinHelp()
 }
+  }else{
+    showinHelp()
+  }
+
 async function newProject(projectName) {
   {
     if (fs.existsSync('AppDeployment')) {
@@ -515,18 +533,19 @@ async function showAuthHelp() {
 }
 function showinHelp() {
   program.action(() => {
-    inquirer
-      .prompt([
-        {
-          type: "text",
-          name: "Text",
-          message: "For interactive menu: \n\tRun  gst -i or gst -h for cli help\n Press any key to continue...",
 
-        },
-      ]).then((result) => {
+      console.log(chalk.bold.blue("\nHelp: Use the following options to interact with the GST-HUB CLI:\n"));
+      console.log(chalk.green("  -i:") + " Interactive menu");
+      console.log(chalk.green("  -new <Name>:") + " Create a new project");
+      console.log(chalk.green("  -c --clone <RepoName> <RepoLink>:") + " Clone an operation from a repository.\n\t run gst -c git <RepoLink> to clone a git repository \nor\n\t gst -c gst <RepoLink> to clone a gst repository");
+      console.log(chalk.green("  -list:") + " List available options");
+      console.log(chalk.green("  -env <command>:") + " Docker Environment run commands as\n\t gst -env start to start the environment,\n\t gst -env stop to stop the environment,\n\t gst -env update to update the environment,\n\t gst -env status to check the environment status,\n\t gst -env purge to purge the environment");
+      console.log(chalk.green("  -token:") + " Store a token from gst-hub.com");
+      console.log(chalk.green("  -login:") + " Login to gst-hub.com\n");
+       console.log(chalk.green("-h")+ "This Help");
 
-      });
   });
+
   program.parse();
 }
 async function showInteractive() {
