@@ -10,9 +10,11 @@ import { promisify } from 'util';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import axios from 'axios';
 
 const tokenStoragePath = 'jwtStorage.enc';
-const encryptionKey = crypto.randomBytes(32); // Example key, replace with a secure key
+const encryptionKey = Buffer.from('46e57e8f7d58de59b4fc8c1843705c0134168a984826f53a26d12dae75280914', 'hex');
+//console.log(encryptionKey.toString('hex')); // Example key, replace with a secure key
 const iv = crypto.randomBytes(16); //
 //console.log(process.argv);
 const mkdir = promisify(fs.mkdir);
@@ -21,7 +23,7 @@ const rename = promisify(fs.rename);
 const stat = promisify(fs.stat);
 let test = process.argv;
 //console.log(chalk.yellow(figlet.textSync("GST-HUB CLI", { horizontalLayout: "full" }))  );
-var auth;
+
 async function saveEncryptedToken(token) {
   const cipher = crypto.createCipheriv('aes-256-cbc', encryptionKey, iv);
   let encrypted = cipher.update(token, 'utf8', 'hex');
@@ -32,7 +34,24 @@ async function saveEncryptedToken(token) {
   fs.writeFileSync(tokenStoragePath, JSON.stringify(data), 'utf8');
   console.log("Token encrypted and saved.");
 }
-
+async function cloneGitRepo(repoUrl) {
+ // console.log(chalk.green(`Cloning..., ${repoUrl}!`));
+  var link = repoUrl;
+  var comm;
+  if (fs.existsSync('./git')) {
+ //   console.log('exists')
+    comm = `cd ./git && git clone ${link}`;
+  }
+  else {
+ //   console.log('NOT exists')
+    comm = `mkdir git && cd ./git && git clone ${link}`;
+  }
+  exec(comm, (err, stdout, stderr) => {
+    if (err) {
+      return;
+    }
+  });
+}
 // Function to read and decrypt the token
 async function readEncryptedToken() {
   if (fs.existsSync(tokenStoragePath)) {
@@ -44,8 +63,123 @@ async function readEncryptedToken() {
   }
   return null;
 }
+async function getAuthToken() {
+  const storedToken = await readEncryptedToken();
+  if (storedToken) {
+ //   console.log("Stored token:");
+    const decoded = jwt.decode(storedToken);
+  //  console.log("Decoded token:", decoded);
+    return storedToken;
+  } else {
+    return false;
+  }
+}
+  async function startEnvironment() {
+    // Implementation for starting the environment
+    exec('docker-compose up -d', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error starting environment: ${error.message}`);
+        return;
+      }
+      console.log(`Environment started successfully: ${stdout}`);
+    });
+  }
 
-// Example usage
+  async function stopEnvironment() {
+    // Implementation for stopping the environment
+    exec('docker-compose down', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error stopping environment: ${error.message}`);
+        return;
+      }
+      console.log(`Environment stopped successfully: ${stdout}`);
+    });
+  }
+
+  async function updateEnvironment() {
+    // Implementation for updating the environment
+    exec('docker-compose pull && docker-compose up -d', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error updating environment: ${error.message}`);
+        return;
+      }
+      console.log(`Environment updated successfully: ${stdout}`);
+    });
+  }
+
+  async function checkEnvironmentStatus() {
+    // Implementation for checking the environment status
+    exec('docker-compose ps', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error checking environment status: ${error.message}`);
+        return;
+      }
+      console.log(`Environment status: ${stdout}`);
+    });
+  }
+
+  async function purgeEnvironment() {
+    // Implementation for purging the environment
+    exec('docker stop $(docker ps -a -q) && docker rm $(docker ps)', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error purging environment: ${error.message}`);
+        return;
+      }
+      console.log(`Environment purged successfully: ${stdout}`);
+    });
+  }
+
+  async function cloneGstRepo(servicePath) {
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        console.log("No valid authentication token found");
+        await showAuthHelp();
+        return;
+      }
+      
+      const url = servicePath;
+      
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': `jwt ${token}`
+        }
+      });
+
+      if (response.status === 200) {
+        console.log("Successfully retrieved service data");
+        // Write response data to file
+        const operationId = response.data.operationId || 'default';
+        const outputDir = './gst';
+        
+        // Create operations directory if it doesn't exist
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir);
+        }
+
+        // Write data to JSON file named after operationId
+        const outputPath = path.join(outputDir, `${operationId}.json`);
+        fs.writeFileSync(outputPath, JSON.stringify(response.data, null, 2));
+        console.log(`Wrote data to ${outputPath}`);
+        return response.data;
+      } else {
+        console.log(`Failed to retrieve service data: ${response.statusText}`);
+      }
+
+    } catch (error) {
+      if (error.response) {
+        // Server responded with error
+        console.log(`Error: ${error.response.status} - ${error.response.data}`);
+      } else if (error.request) {
+        // Request made but no response
+        console.log("Error: No response received from server");
+      } else {
+        // Error setting up request
+        console.log(`Error: ${error.message}`);
+      }
+    }
+  }
+
 
 program
   .version("1.0.0")
@@ -64,31 +198,34 @@ if (test[2] && (test[2].includes('--') || test[2].includes('-'))) {
     switch (test[2]) {
       case '-token':
         if (test[2] === '-token' && test[3]) { // Ensure the token is provided
-          const token = test[3];
+
           try {
             const token = test[3]; // Assuming the token is passed as the third argument
             if (token) {
               try {
-                const decoded = jwt.decode(token);
-                console.log("Token received:", token);
-                console.log("Decoded token:", decoded);
+                const decoded = jwt.decode(token, { complete: true });
 
-                // Encrypt and save the token
-                saveEncryptedToken(token);
-              } catch (error) {
+                if (decoded) {
+                  const currentTime = Math.floor(Date.now() / 1000);
+                  if (decoded.payload.exp && decoded.payload.exp < currentTime) {
+                    console.log("Token is expired.");
+                   
+                  }
+                  else{
+                    await saveEncryptedToken(token);
+                    console.log("Token is valid and saved.");
+                  }
+                }
+                else{
+                  await saveEncryptedToken(token);
+                    console.log("Token is not a valid  JWT.");
+                }
+               
+              }  catch (error) {
                 console.log("Failed to decode token:", error.message);
               }
             } else {
               console.log("No token provided.");
-            }
-            const storedToken = await readEncryptedToken();
-            if (storedToken) {
-              console.log("Stored token:");
-              const decoded = jwt.decode(storedToken);
-
-              console.log("Decoded token:", decoded);
-            } else {
-              console.log("No token found in storage.");
             }
 
             // Handle token logic here
@@ -102,55 +239,154 @@ if (test[2] && (test[2].includes('--') || test[2].includes('-'))) {
         }
         break;
       case '-login':
-        console.log('2');
+        if (test[3] === '-u' && test[5] === '-p' && test[4] && test[6]) {
+          const username = test[4];
+          const password = test[6];
+          try {
+            const response = await axios({
+              method: 'post',
+              url: 'https://gst-hub.com/token',
+              auth: {
+                username: username,
+                password: password
+              },
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.data && response.data.token) {
+              await saveEncryptedToken(response.data.token);
+              console.log(chalk.green("Successfully logged in and saved token."));
+            } else {
+              console.log(chalk.red("Invalid response from server - no token received."));
+            }
+          } catch (error) {
+            console.log(chalk.red("Login failed:"), error.response?.data?.message || error.message);
+          }
+        } else {
+          console.log(chalk.yellow("Usage: gst -login -u <username> -p <password>"));
+        }
         break;
     }
-  }
-  if (auth) {
-    switch (test[2]) {
-      case '-i':
-        console.log('1');
-        showInteractive();
-        break;
-      case '-new':
-        console.log('2');
-        showInteractive();
-        break;
-      case '-c':
-      case '--clone':
-        console.log('3');
-        showInteractive();
-        break;
-      case '-s':
-      case '--status':
-        console.log('4');
-        showInteractive();
-        break;
-      case '-list':
-        console.log('5');
-        showInteractive();
-        break;
-      case '-env':
-        console.log('6');
-        showInteractive();
-        break;
-      default:
-        console.log('7');
-        showinHelp()
-        break;
+  } else {
+    /// console.log(await getAuthToken());
+    if (await getAuthToken()) {
+      switch (test[2]) {
+        case '-i':
+       //  console.log('1');
+          showInteractive();
+          break;
+        case '-new':
+          if (test[3]) {
+            newProject(test[3]);
+          } else {
+            console.log(chalk.red("Error: No project name provided"));
+          }
+         
+          break;
+        case '-c':
+        case '--clone':
+          if (test[3] === 'git') {
+            if (test[4]) {
+
+              cloneGitRepo(test[4]);
+            } else {
+              console.log(chalk.red("Error: No git repository URL provided"));
+            }
+          } else if (test[3] === 'gst') {
+            if (test[4]) {
+              console.log(chalk.green(`Cloning GST repository..., ${test[4]}!`));
+              cloneGstRepo(test[4]);
+            } else {
+              console.log(chalk.red("Error: No GST repository name provided")); 
+            }
+          }
+          break;
+        case '-list':
+          console.log('5');
+          showInteractive();
+          break;
+        case '-env':
+          if (test[3]) {
+            switch (test[3]) {
+              case 'start':
+                await startEnvironment();
+                break;
+              case 'stop':
+                await stopEnvironment();
+                break;
+              case 'update':
+                await updateEnvironment();
+                break;
+              case 'status':
+                await checkEnvironmentStatus();
+                break;
+              case 'purge':
+                await purgeEnvironment();
+                break;
+              default:
+                console.log(chalk.red("Error: Invalid environment command"));
+                break;
+            }
+          } else {
+            console.log(chalk.red("Error: No environment command provided"));
+          }
+          break;
+        default:
+          console.log('7');
+          showinHelp()
+          break;
+      }
+
     }
+    else {
+      showAuthHelp()
 
+
+    }
   }
-  else {
-    showAuthHelp()
 
-
-  }
 }
 else {
   showinHelp()
 }
-
+async function newProject(projectName) {
+  {
+    if (fs.existsSync('AppDeployment')) {
+      console.log(chalk.yellow('Project already exists in directory'));
+      return;
+    }
+    else{
+      console.log(chalk.green(`Create New Project... ,// ${projectName}!`));
+      var link = 'https://github.com/GST-hub-Admin/AppDeployment.git';
+      exec(`git clone ${link}`, (err, stdout, stderr) => {
+        if (err) {
+          // node couldn't execute the command
+          return;
+        }
+        exec(`cd /AppDeployment && npm install`, (err, stdout, stderr) => {
+          if (err) {
+            // node couldn't execute the command
+            return;
+          }
+  
+          // the *entire* stdout and stderr (buffered)
+          console.log(`stdout: ${stdout}`);
+          console.log(`stderr: ${stderr}`);
+          console.log(`Done.`);
+          return;
+        });
+        // the *entire* stdout and stderr (buffered)
+        console.log(`stdout: ${stdout}`);
+        console.log(`stderr: ${stderr}`);
+        console.log(`Done.`);
+        return;
+      });
+    }
+    
+  }
+}
 async function showAuthHelp() {
   inquirer
     .prompt([
@@ -266,31 +502,7 @@ async function showInteractive() {
                         },
                       ])
                       .then((answers) => {
-                        console.log(chalk.green(`Create New Project... ,${pname.name}// ${answers.name}!`));
-                        var link = 'https://github.com/GST-hub-Admin/AppDeployment.git';
-                        exec(`git clone ${link}`, (err, stdout, stderr) => {
-                          if (err) {
-                            // node couldn't execute the command
-                            return;
-                          }
-                          exec(`cd /AppDeployment && npm install`, (err, stdout, stderr) => {
-                            if (err) {
-                              // node couldn't execute the command
-                              return;
-                            }
-
-                            // the *entire* stdout and stderr (buffered)
-                            console.log(`stdout: ${stdout}`);
-                            console.log(`stderr: ${stderr}`);
-                            console.log(`Done.`);
-                            return;
-                          });
-                          // the *entire* stdout and stderr (buffered)
-                          console.log(`stdout: ${stdout}`);
-                          console.log(`stderr: ${stderr}`);
-                          console.log(`Done.`);
-                          return;
-                        });
+                        newProject(answers.name);
                       });
                   });
                 }
@@ -338,32 +550,7 @@ async function showInteractive() {
                       ])
                       .then((answers) => {
                         console.log(chalk.green(`Cloning..., ${answers.name}!`));
-
-                        var link = answers.name;
-                        var comm;
-                        if (fs.existsSync('./git')) {
-                          console.log('exists')
-                          comm = `cd ./git && git clone ${link}`;
-                        }
-                        else {
-
-                          console.log('NOT exists')
-                          comm = `mkdir git && cd ./git && git clone ${link}`;
-                        }
-                        exec(comm, (err, stdout, stderr) => {
-                          if (err) {
-                            // node couldn't execute the command
-                            return;
-                          }
-
-                          // the *entire* stdout and stderr (buffered)
-                          // console.log(`stdout: ${stdout}`);
-                          console.log(`stderr: ${stderr}`);
-                          console.log(`Done`);
-                          return;
-                        });
-                        return;
-
+                        cloneGitRepo(answers.name);
                       });
                   });
 
