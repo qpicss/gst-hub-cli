@@ -11,7 +11,7 @@ import path from 'path';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import axios from 'axios';
-
+import { spawn } from 'child_process';
 const tokenStoragePath = 'jwtStorage.enc';
 const encryptionKey = Buffer.from('46e57e8f7d58de59b4fc8c1843705c0134168a984826f53a26d12dae75280914', 'hex');
 //console.log(encryptionKey.toString('hex')); // Example key, replace with a secure key
@@ -76,56 +76,132 @@ async function getAuthToken() {
 }
   async function startEnvironment() {
     // Implementation for starting the environment
-    exec('docker-compose up -d', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error starting environment: ${error.message}`);
-        return;
-      }
-      console.log(`Environment started successfully: ${stdout}`);
+  //  console.log(chalk.green(`Starting Docker..., Run!`));
+
+  try {
+    const process = spawn('docker-compose', ['-f', 'docker-compose.yaml', 'up'], {
+      cwd: './AppDeployment/server',
+      detached: true,
+      stdio: 'ignore'
     });
+
+    process.unref(); // Allow the process to continue running independently
+
+    console.log('Environment started successfully.');
+  } catch (err) {
+    console.log(`Error starting environment: ${err.message}`);
+  }
   }
 
   async function stopEnvironment() {
     // Implementation for stopping the environment
-    exec('docker-compose down', (error, stdout, stderr) => {
+    exec('docker ps -a -q', (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error stopping environment: ${error.message}`);
+        console.error(`Error getting container names: ${error.message}`);
         return;
       }
-      console.log(`Environment stopped successfully: ${stdout}`);
+      const containerIds = stdout.trim().split('\n');
+      if (containerIds.length === 0) {
+        console.log('No containers to stop.');
+        return;
+      }
+      exec(`docker stop ${containerIds.join(' ')}`, (stopError, stopStdout, stopStderr) => {
+        if (stopError) {
+          console.error(`Error stopping environment: ${stopError.message}`);
+          return;
+        }
+        console.log(`Environment stopped successfully: ${stopStdout}`);
+      });
     });
   }
 
   async function updateEnvironment() {
-    // Implementation for updating the environment
-    exec('docker-compose pull && docker-compose up -d', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error updating environment: ${error.message}`);
-        return;
-      }
-      console.log(`Environment updated successfully: ${stdout}`);
+    program.action(() => {
+      inquirer
+        .prompt([
+          {
+            type: "list",
+            name: "name",
+            message: "Repo type:",
+            choices: ["gst", "git"],
+          },
+        ])
+        .then((answers) => {
+          if (answers.name == 'git') {
+            //compare folders
+            moveJsonFilesToCommonDirectory('./git', './AppDeployment/resources', { recursive: true });
+
+
+          }
+
+          if (answers.name == 'gst')
+            program.action(() => {
+              inquirer
+                .prompt([
+                  {
+                    type: "input",
+                    name: "name",
+                    message: "Artifact Name and Version:",
+                  },
+                ])
+                .then((answers) => {
+                  console.log(chalk.green(`Hey there, ${answers.name}!`));
+                });
+            });
+          program.parse();
+        });
     });
+  program.parse();
+  return;
   }
 
   async function checkEnvironmentStatus() {
     // Implementation for checking the environment status
-    exec('docker-compose ps', (error, stdout, stderr) => {
+    exec('docker ps', (error, stdout, stderr) => {
       if (error) {
         console.error(`Error checking environment status: ${error.message}`);
         return;
       }
-      console.log(`Environment status: ${stdout}`);
+  
+      // Split stdout into lines and print each line
+      stdout.split('\n').forEach((line) => {
+        if (line.trim()) { // Check if the line is not empty
+          console.log(`stdout: ${line}`);
+        }
+      });
+  
+      // Split stderr into lines and print each line
+      stderr.split('\n').forEach((line) => {
+        if (line.trim()) { // Check if the line is not empty
+          console.error(`stderr: ${line}`);
+        }
+      });
     });
   }
 
   async function purgeEnvironment() {
     // Implementation for purging the environment
-    exec('docker stop $(docker ps -a -q) && docker rm $(docker ps)', (error, stdout, stderr) => {
+    exec('docker ps -a --format "{{.Names}}"', (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error purging environment: ${error.message}`);
+        console.error(`Error getting container names: ${error.message}`);
         return;
       }
-      console.log(`Environment purged successfully: ${stdout}`);
+
+      const containerNames = stdout.split('\n').filter(name => name.trim() !== '');
+      if (containerNames.length === 0) {
+        console.log('No containers to purge.');
+        return;
+      }
+
+      containerNames.forEach(name => {
+        exec(`docker stop ${name} && docker rm ${name}`, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`Error purging container ${name}: ${error.message}`);
+            return;
+          }
+          console.log(`Container ${name} purged successfully: ${stdout}`);
+        });
+      });
     });
   }
 
@@ -517,7 +593,7 @@ async function showInteractive() {
 
                         },
                       ]).then((result) => {
-
+                        return;
                       });
                   });
                   program.parse();
@@ -585,118 +661,28 @@ async function showInteractive() {
               ])
               .then((answers) => {
                 if (answers.name == 'start') {
-
-                  console.log(chalk.green(`Starting Docker..., Run!`));
-
-                  exec(`cd ./AppDeployment/server && docker-compose -f docker-compose.yaml up`, (err, stdout, stderr) => {
-                    if (err) {
-                      console.log(`stderr: ${err}`);
-                      console.log(`Done`);
-                      // node couldn't execute the command
-                      return;
-                    }
-
-
+                  startEnvironment();
                     return;
-                  });
-
-                }
+                  }
                 if (answers.name == 'purge') {
                   //docker stop $(docker ps -a -q)
-
-                  console.log(chalk.green(`Starting Docker..., Run!`));
-
-                  exec("docker stop $(docker ps) && docker rm $(docker ps)", (err, stdout, stderr) => {
-                    if (err) {
-                      console.log(`stderr: ${err}`);
-                      console.log(`Done`);
-                      // node couldn't execute the command
-                      return;
-                    }
-
-                    // the *entire* stdout and stderr (buffered)
-                    // console.log(`stdout: ${stdout}`);
-                    console.log(`out: ${stdout}`);
-                    console.log(`Done`);
-                    return;
-                  });
+                  purgeEnvironment();
+                  return;
                 }
-
                 if (answers.name == 'stop') {
-                  //docker stop $(docker ps -a -q)
-
-                  console.log(chalk.green(`Starting Docker..., Run!`));
-
-                  exec("docker stop $(docker ps)", (err, stdout, stderr) => {
-                    if (err) {
-                      console.log(`stderr: ${err}`);
-                      console.log(`Done`);
-                      // node couldn't execute the command
-                      return;
-                    }
-
-                    // the *entire* stdout and stderr (buffered)
-                    // console.log(`stdout: ${stdout}`);
-                    console.log(`out: ${stdout}`);
-                    console.log(`Done`);
-                    return;
-                  });
+                  stopEnvironment();
+                  return;
                 }
                 if (answers.name == 'status') {
-                  console.log(chalk.green(`Starting Docker..., Run!`));
-
-                  exec(`docker images`, (err, stdout, stderr) => {
-                    if (err) {
-                      console.log(`stderr: ${err}`);
-                      console.log(`Done`);
-                      // node couldn't execute the command
-                      return;
-                    }
-
-                    // the *entire* stdout and stderr (buffered)
-                    // console.log(`stdout: ${stdout}`);
-                    console.log(`Out: ${stdout}`);
-                    console.log(`Done`);
-
-                  });
+                  checkEnvironmentStatus();
+                  return;
                 }
                 if (answers.name == 'update')
-                  program.action(() => {
-                    inquirer
-                      .prompt([
-                        {
-                          type: "list",
-                          name: "name",
-                          message: "Repo type:",
-                          choices: ["gst", "git"],
-                        },
-                      ])
-                      .then((answers) => {
-                        if (answers.name == 'git') {
-                          //compare folders
-                          moveJsonFilesToCommonDirectory('./git', './AppDeployment/resources', { recursive: true });
+                {
+                  updateEnvironment();
+                  return; 
+                }
 
-
-                        }
-
-                        if (answers.name == 'gst')
-                          program.action(() => {
-                            inquirer
-                              .prompt([
-                                {
-                                  type: "input",
-                                  name: "name",
-                                  message: "Artifact Name and Version:",
-                                },
-                              ])
-                              .then((answers) => {
-                                console.log(chalk.green(`Hey there, ${answers.name}!`));
-                              });
-                          });
-                        program.parse();
-                      });
-                  });
-                program.parse();
               });
             return;
           });
